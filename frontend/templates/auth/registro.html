@@ -1,0 +1,74 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrarse | Hands That Speak</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-screen">
+
+  <!-- Contenedor principal -->
+  <div class="bg-white shadow-lg rounded-2xl w-full max-w-md p-8">
+    <!-- Logo -->
+    <div class="flex justify-center mb-6">
+      <img src="{% static 'img/logotipo.png' %}" alt="Logo" class="w-32">
+    </div>
+
+    <!-- Título -->
+    <h2 class="text-2xl font-bold text-center text-gray-900 mb-2">Crea tu cuenta</h2>
+    <p class="text-gray-500 text-center mb-6">Únete a Hands That Speak en segundos</p>
+
+    <!-- Formulario -->
+    <form action="#" method="POST" class="space-y-4">
+      {% csrf_token %}
+      
+      <!-- Nombre -->
+      <div>
+        <label class="block text-gray-700 font-semibold mb-1">Nombre completo</label>
+        <input type="text" name="nombre" 
+               class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+               placeholder="Ej: Ana Pérez" required>
+      </div>
+
+      <!-- Correo -->
+      <div>
+        <label class="block text-gray-700 font-semibold mb-1">Correo electrónico</label>
+        <input type="email" name="email" 
+               class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+               placeholder="ejemplo@email.com" required>
+      </div>
+
+      <!-- Contraseña -->
+      <div>
+        <label class="block text-gray-700 font-semibold mb-1">Contraseña</label>
+        <input type="password" name="password" 
+               class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+               placeholder="••••••••" required>
+      </div>
+
+      <!-- Confirmar Contraseña -->
+      <div>
+        <label class="block text-gray-700 font-semibold mb-1">Confirmar contraseña</label>
+        <input type="password" name="password2" 
+               class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+               placeholder="••••••••" required>
+      </div>
+
+      <!-- Botón Registrar -->
+      <button type="submit"
+              class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition">
+        Registrarse
+      </button>
+    </form>
+
+    <!-- Texto alternativo -->
+    <p class="text-center text-gray-600 text-sm mt-6">
+      ¿Ya tienes una cuenta?
+      <a href="{% url 'login' %}" class="text-blue-600 font-semibold hover:underline">Inicia sesión</a>
+    </p>
+  </div>
+</body>
+</html>

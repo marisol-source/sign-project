@@ -18,18 +18,35 @@
 </head>
 <body id="body" class="bg-gray-100 font-sans transition-colors duration-500">
 
-  <!-- Navbar -->
-  <nav class="fixed top-0 left-0 w-full bg-white shadow-md z-20">
-    <div class="max-w-7xl mx-auto flex justify-between items-center py-2 px-6">
-      <img src="{% static 'img/logotipo.png' %}" alt="Logo" class="w-36 h-auto">
-      <ul class="hidden md:flex space-x-8 text-gray-900 font-semibold">
-        <li><a href="{% url 'home' %}" class="hover:text-blue-600">Inicio</a></li>
-        <li><a href="{% url 'demo' %}" class="hover:text-blue-600">Demo</a></li>
-        <li><a href="{% url 'home' %}#nosotros" class="hover:text-blue-600">Nosotros</a></li>
-      </ul>
-      <button class="md:hidden text-gray-900 font-bold" id="menu-btn">☰</button>
+ <!-- Navbar -->
+<nav class="fixed top-0 left-0 w-full bg-white shadow-md z-20">
+  <div class="max-w-7xl mx-auto flex justify-between items-center py-3 px-6">
+    <!-- Logo -->
+    <img src="{% static 'img/logotipo.png' %}" alt="Logo" class="w-36 h-auto">
+
+    <!-- Menú + Botones a la derecha -->
+    <div class="hidden md:flex items-center space-x-8 text-gray-700 font-medium">
+      <a href="#inicio" class="hover:text-blue-600 transition">Inicio</a>
+      <a href="{% url 'demo' %}" class="hover:text-blue-600 transition">Demo</a>
+      <a href="{% url 'home' %}#nosotros" class="hover:text-blue-600 transition">Nosotros</a>
+
+      <!-- Botones de login/registro -->
+      <div class="flex space-x-3 ml-6">
+        <a href="{% url 'login' %}"
+           class="bg-blue-600 text-white font-semibold px-5 py-2 rounded-full hover:bg-blue-700 hover:shadow-md transition">
+           Iniciar Sesión
+        </a>
+        <a href="{% url 'registro' %}"
+           class="bg-gray-200 text-gray-800 font-semibold px-5 py-2 rounded-full hover:bg-gray-300 hover:shadow-md transition">
+           Registrarse
+        </a>
+      </div>
     </div>
-  </nav>
+
+    <!-- Botón menú móvil -->
+    <button class="md:hidden text-gray-900 font-bold" id="menu-btn">☰</button>
+  </div>
+</nav>
 
   <!-- Sección Cámara -->
   <section id="demo" class="pt-32 pb-24 px-6 md:px-12 flex justify-center">

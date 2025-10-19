@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Iniciar Sesión | Mi Proyecto Tesis</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+
+  <!-- Navbar (reutilizada de tu landing) -->
+  <nav class="fixed top-0 left-0 w-full bg-white shadow-md z-20">
+    <div class="max-w-7xl mx-auto flex justify-between items-center py-2 px-6">
+      <img src="{% static 'img/logotipo.png' %}" alt="Logo" class="w-36 h-auto">
+      <a href="{% url 'home' %}" class="text-blue-600 font-semibold hover:underline">Volver al inicio</a>
+    </div>
+  </nav>
+
+  <!-- Contenedor principal -->
+  <section class="flex items-center justify-center min-h-screen bg-gray-50 pt-20">
+    <div class="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
+      <!-- Título -->
+      <h2 class="text-3xl font-extrabold text-gray-900 text-center mb-6">
+        Bienvenido de nuevo
+      </h2>
+      <p class="text-gray-600 text-center mb-8">
+        Ingresa tus credenciales para acceder a la plataforma
+      </p>
+
+      <!-- Formulario -->
+      <form method="POST" action="#">
+        {% csrf_token %}
+        <div class="mb-4">
+          <label class="block text-gray-700 font-semibold mb-2">Correo electrónico</label>
+          <input type="email" name="username" placeholder="ejemplo@empresa.com"
+                 class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-gray-700 font-semibold mb-2">Contraseña</label>
+          <input type="password" name="password" placeholder="••••••••"
+                 class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+
+        <button type="submit"
+                class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition">
+          Iniciar Sesión
+        </button>
+      </form>
+
+      <!-- Enlaces extra -->
+      <div class="flex justify-between items-center mt-6 text-sm text-gray-600">
+        <a href="#" class="hover:text-blue-600">¿Olvidaste tu contraseña?</a>
+        <a href="{% url 'registro' %}" class="hover:text-blue-600">Crear cuenta</a>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>
