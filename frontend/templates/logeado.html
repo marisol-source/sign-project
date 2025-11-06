@@ -1,0 +1,168 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Proyecto Tesis</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white text-gray-900 font-sans">
+
+<!-- Navbar -->
+<nav class="fixed top-0 left-0 w-full bg-white shadow-md z-20">
+  <div class="max-w-7xl mx-auto flex justify-between items-center py-3 px-6">
+    <!-- Logo -->
+    <img src="{% static 'img/logotipo.png' %}" alt="Logo" class="w-36 h-auto">
+
+    <!-- Menú + Botones a la derecha -->
+    <div class="hidden md:flex items-center space-x-8 text-gray-700 font-medium">
+      <a href="#inicio" class="hover:text-blue-600 transition">Inicio</a>
+      <a href="{% url 'demo' %}" class="hover:text-blue-600 transition">Demo</a>
+      <a href="{% url 'home' %}#nosotros" class="hover:text-blue-600 transition">Nosotros</a>
+
+      <!-- Menú de usuario -->
+      <div class="relative ml-6">
+        <button id="user-menu-btn" class="flex items-center space-x-2 focus:outline-none group">
+
+            <!-- Avatar con inicial -->
+            <div id="user-avatar" class="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg border border-gray-200">
+            {{ empresa_nombre|first|upper }}
+            </div>
+            <span class="font-semibold text-gray-800 group-hover:text-blue-600 transition">
+            {{ empresa_nombre }}
+          </span>
+          <svg class="w-4 h-4 text-gray-600 group-hover:text-blue-600 transition" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+
+        <!-- Dropdown -->
+        <div id="user-menu" class="hidden absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-100">
+          <a href="{% url 'logout' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-t-lg">Cerrar sesión</a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Botón menú móvil -->
+    <button class="md:hidden text-gray-900 font-bold" id="menu-btn">☰</button>
+  </div>
+</nav>
+
+
+
+<!-- Hero Section -->
+<section id="inicio" class="flex flex-col md:flex-row items-center justify-center max-w-7xl mx-auto px-6 pt-32 md:pt-36 pb-12 gap-8">
+  <!-- Texto -->
+  <div class="flex-1 flex flex-col gap-6 justify-center text-center md:text-left">
+    <h1 class="text-4xl md:text-6xl font-extrabold text-gray-900">Atiende a todos, sin límites</h1>
+    <p class="text-lg md:text-xl text-gray-700 max-w-lg">
+      Tu empresa puede comunicarse con clientes que usan lengua de señas de forma fácil y rápida. Mejora tu servicio y hazlo inclusivo.
+    </p>
+    <a href="{% url 'demo' %}">
+    <button class="bg-blue-600 text-white font-semibold px-8 py-4 rounded-lg hover:bg-blue-700 transition w-max">
+      Comenzar
+    </button>
+    </a>
+  </div>
+
+  <!-- Imagen -->
+     <div class="hidden md:block relative flex-1">
+    <img src="{% static 'img/principal.jpg' %}" alt="" class="w-full h-64 md:h-80 lg:h-[400px] object-cover rounded-xl shadow-xl">
+    </div>
+</section>
+
+
+
+  <!-- Sección “Quiénes somos” -->
+  <section id="nosotros" class="py-24 px-6 md:px-12 max-w-7xl mx-auto flex flex-col md:flex-row items-start gap-16 scroll-mt-24">
+    <div class="flex-1 flex flex-col gap-6">
+      <h2 class="text-3xl md:text-4xl font-bold text-gray-900">¿Quiénes somos?</h2>
+      <p class="text-lg text-gray-700">
+        Somos una plataforma inclusiva diseñada para empresas comerciales. Con nuestra tecnología, restaurantes, bancos, tiendas y más pueden comunicarse con clientes que usan lengua de señas, eliminando barreras y mejorando la experiencia de servicio.
+      </p>
+    </div>
+    <div class="flex-1">
+      <img src="{% static 'img/somos.jpg' %}" alt="" class="w-full h-auto rounded-xl shadow-lg">
+    </div>
+  </section>
+
+  <!-- Sección Misión -->
+  <section class="py-24 px-6 md:px-12 max-w-7xl mx-auto flex flex-col md:flex-row items-start gap-16">
+    <div class="flex-1 order-2 md:order-1">
+      <img src="{% static 'img/vision.jpg' %}" alt="" class="w-full h-auto rounded-xl shadow-lg">
+    </div>
+    <div class="flex-1 flex flex-col gap-6 order-1 md:order-2">
+      <h2 class="text-3xl md:text-4xl font-bold text-gray-900">Misión</h2>
+      <p class="text-lg text-gray-700">
+        Facilitar la comunicación entre empresas y personas que utilizan lengua de señas, creando soluciones inclusivas que mejoren la experiencia del cliente y promuevan la igualdad de oportunidades.
+      </p>
+    </div>
+  </section>
+
+  <!-- Testimonios -->
+  <section class="py-24 px-6 md:px-12 max-w-7xl mx-auto">
+    <div class="bg-gray-50 rounded-xl p-8 md:p-12 shadow-lg flex flex-col md:flex-row items-start gap-8">
+      <img src="{% static 'img/comentario.jpg' %}" alt="" class="w-24 h-24 rounded-full">
+      <div class="flex flex-col gap-4">
+        <p class="text-gray-900 text-lg">
+          “Creemos en un mundo donde ninguna barrera limite la comunicación. Nuestra plataforma ayuda a empresas comerciales a ofrecer un servicio inclusivo y accesible, conectando con cada cliente de manera clara, rápida y sin diferencias.”
+        </p>
+        <div class="text-gray-700">
+          <p class="font-bold">Mari Cruz</p>
+          <p>Desarrolladora, Hands that speak</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-gray-200 py-12 px-6 md:px-12">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-8">
+      <div class="flex flex-col gap-6">
+        <div class="flex flex-col gap-2">
+          <div class="flex gap-6 flex-wrap">
+            <a href="#inicio" class="hover:text-white">Inicio</a>
+            <a href="{% url 'demo' %}" class="hover:text-white">Demo</a>
+            <a href="{% url 'home' %}#nosotros" class="hover:text-white">Nosotros</a>
+            <a href="#" class="hover:text-white">Noticias</a>
+            <a href="#" class="hover:text-white">Ayuda</a>
+            <a href="#" class="hover:text-white">Contacto</a>
+          </div>
+        </div>
+        <p class="text-gray-400 text-sm">© 2025 Todos los derechos reservados</p>
+      </div>
+    </div>
+  </footer>
+
+  
+    <!-- Script menú usuario -->
+    <script>
+    const userBtn = document.getElementById('user-menu-btn');
+    const userMenu = document.getElementById('user-menu');
+    userBtn.addEventListener('click', () => {
+        userMenu.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+        if (!userBtn.contains(e.target) && !userMenu.contains(e.target)) {
+        userMenu.classList.add('hidden');
+        }
+    });
+    </script>
+
+
+
+  <!-- Script menú móvil -->
+  <script>
+    const btn = document.getElementById('menu-btn');
+    const menu = document.querySelector('nav ul');
+    btn.addEventListener('click', () => {
+      menu.classList.toggle('hidden');
+    });
+  </script>
+
+</body>
+</html>
+

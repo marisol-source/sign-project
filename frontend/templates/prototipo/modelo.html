@@ -58,9 +58,11 @@
     </svg>
   </button>
 </div>
+
+
 <script>
   // ==============================
-  // CONFIGURACIÓN
+  // INICIALIZACIÓN DE CÁMARA Y MEDIA PIPE
   // ==============================
   const CONFIG = {
     RES_W: 1280,
@@ -74,169 +76,244 @@
     MIN_CONFIDENCE: 0.5
   };
 
-  const video = document.getElementById('input_video');
-  const canvas = document.getElementById('output_canvas');
-  const ctx = canvas.getContext('2d');
-  const estado = document.getElementById('estado');
-  const barra = document.getElementById('barra');
-  const timerValue = document.getElementById('timerValue');
-  const chat = document.getElementById('chat');
+const video = document.getElementById('input_video');
+const canvas = document.getElementById('output_canvas');
+const ctx = canvas.getContext('2d');
 
-  let lastGestureTime = Date.now();
-  let lastDetected = false;
-  let currentTimer = 0;
-  let cameraOn = true;
-  let paused = false;
-  let cameraInstance = null;
+let cameraInstance = null;
 
-  // --- Buffer para letras ---
-  let bufferLetras = [];
-  let ultimaLetra = null;
+async function setupCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: CONFIG.RES_W, height: CONFIG.RES_H, facingMode: 'user' },
+    audio: false
+  });
+  video.srcObject = stream;
+  await video.play();
+  return stream;
+}
 
-  async function setupCamera() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: CONFIG.RES_W, height: CONFIG.RES_H, facingMode: 'user' },
-      audio: false
-    });
-    video.srcObject = stream;
-    await video.play();
-    return stream;
+const hands = new Hands({
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 1,
+  minDetectionConfidence: CONFIG.CONF_THRESH,
+  minTrackingConfidence: CONFIG.CONF_THRESH
+});
+
+hands.onResults(onResults);  // Esta función la definimos aparte más abajo
+
+video.addEventListener('loadeddata', () => {
+  canvas.width = CONFIG.RES_W;
+  canvas.height = CONFIG.RES_H;
+});
+
+setupCamera().then(() => {
+  cameraInstance = new Camera(video, {
+    onFrame: async () => { await hands.send({ image: video }); },
+    width: CONFIG.RES_W,
+    height: CONFIG.RES_H
+  });
+  cameraInstance.start();
+});
+
+
+// ==============================
+// VARIABLES DE ESTADO
+// ==============================
+const estado = document.getElementById('estado');
+const barra = document.getElementById('barra');
+const timerValue = document.getElementById('timerValue');
+const chat = document.getElementById('chat');
+
+let lastGestureTime = Date.now();
+let lastDetected = false;
+let currentTimer = 0;
+let cameraOn = true;
+let paused = false;
+
+// --- Buffer para letras ---
+let bufferLetras = [];
+let ultimaLetra = null;
+
+
+// ==============================
+// FUNCIONES DE DETECCIÓN Y PROCESAMIENTO
+// ==============================
+function onResults(results) {
+  if (paused) return;
+
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+  const now = Date.now();
+
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const landmarks = results.multiHandLandmarks[0];
+
+    // Dibujar mano
+    drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+    drawLandmarks(ctx, landmarks, { color: '#FF0000', lineWidth: 3, radius: 5 });
+
+    // Enviar datos a API
+    enviarLandmarksAPI(landmarks);
+
+    lastGestureTime = now;
+    lastDetected = true;
+    estado.textContent = '✋ Mano detectada';
+    currentTimer = 0;
+  } else {
+    manejarTemporizador(now);
   }
 
-  const hands = new Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-  });
-  hands.setOptions({
-    maxNumHands: 1,
-    modelComplexity: 1,
-    minDetectionConfidence: CONFIG.CONF_THRESH,
-    minTrackingConfidence: CONFIG.CONF_THRESH
-  });
-  hands.onResults(onResults);
+  ctx.restore();
+}
 
-  function onResults(results) {
-    if (paused) return;
+// ==============================
+// FUNCION AUXILIAR PARA ENVIAR LANDMARKS A API
+// ==============================
+function enviarLandmarksAPI(landmarks) {
+  fetch("/api/predict/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: "landmarks",
+      data: landmarks.map(p => ({ x: 1 - p.x, y: p.y, z: p.z }))
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.letter && data.confidence >= CONFIG.MIN_CONFIDENCE) {
+      bufferLetras.push(data.letter);
+      if (bufferLetras.length > CONFIG.BUFFER_SIZE) bufferLetras.shift();
 
-    ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-    const now = Date.now();
+      const counts = {};
+      bufferLetras.forEach(l => counts[l] = (counts[l]||0)+1);
+      const mostFrequent = Object.keys(counts).reduce((a,b)=> counts[a]>counts[b]?a:b);
 
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      const landmarks = results.multiHandLandmarks[0];
-
-      drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
-      drawLandmarks(ctx, landmarks, { color: '#FF0000', lineWidth: 3, radius: 5 });
-
-      // --- Comunicación con API ---
-      fetch("/api/predict/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "landmarks",
-          data: landmarks.map(p => ({ x: 1 - p.x, y: p.y, z: p.z }))
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.letter && data.confidence >= CONFIG.MIN_CONFIDENCE) {
-          bufferLetras.push(data.letter);
-          if (bufferLetras.length > CONFIG.BUFFER_SIZE) bufferLetras.shift();
-
-          const counts = {};
-          bufferLetras.forEach(l => counts[l] = (counts[l]||0)+1);
-          const mostFrequent = Object.keys(counts).reduce((a,b)=> counts[a]>counts[b]?a:b);
-
-          if (mostFrequent !== ultimaLetra) {
-            ultimaLetra = mostFrequent;
-            chat.innerHTML += `<div>🔤 Letra detectada: ${mostFrequent} (Conf: ${Math.round(data.confidence*100)}%)</div>`;
-            chat.scrollTop = chat.scrollHeight;
-          }
-        }
-        if (data.error) console.error("Error API:", data.error);
-      })
-      .catch(err => console.error("Error fetch:", err));
-
-      lastGestureTime = now;
-      lastDetected = true;
-      estado.textContent = '✋ Mano detectada';
-      currentTimer = 0;
-    } else {
-      if (lastDetected) {
-        currentTimer = (now - lastGestureTime) / 1000.0;
-        timerValue.textContent = currentTimer.toFixed(1);
-
-        if (currentTimer > CONFIG.PAUSA_TEMPORIZADOR) {
-          estado.textContent = '✅ Enviando oración';
-          chat.innerHTML += `<div>📝 Oración completada.</div>`;
-          lastDetected = false;
-        } else if (currentTimer > CONFIG.PAUSA_ORACION) {
-          estado.textContent = '🗣️ Fin de oración';
-        } else if (currentTimer > CONFIG.PAUSA_PALABRA) {
-          estado.textContent = '💬 Fin de palabra';
-        } else if (currentTimer > CONFIG.PAUSA_LETRA) {
-          estado.textContent = '🔤 Fin de letra';
-        } else {
-          estado.textContent = '⏱️ En pausa corta...';
-        }
-        barra.style.width = `${Math.min((currentTimer / CONFIG.PAUSA_TEMPORIZADOR) * 100, 100)}%`;
+      if (mostFrequent !== ultimaLetra) {
+        ultimaLetra = mostFrequent;
+        chat.innerHTML += `<div>🔤 Letra detectada: ${mostFrequent} (Conf: ${Math.round(data.confidence*100)}%)</div>`;
+        chat.scrollTop = chat.scrollHeight;
       }
     }
-    ctx.restore();
+    if (data.error) console.error("Error API:", data.error);
+  })
+  .catch(err => console.error("Error fetch:", err));
+}
+
+// ==============================
+// FUNCION AUXILIAR PARA MANEJAR TEMPORIZADOR Y ESTADO
+// ==============================
+function manejarTemporizador(now) {
+  if (!lastDetected) return;
+
+  currentTimer = (now - lastGestureTime) / 1000.0;
+  timerValue.textContent = currentTimer.toFixed(1);
+
+  if (currentTimer > CONFIG.PAUSA_TEMPORIZADOR) {
+    estado.textContent = '✅ Enviando oración';
+    chat.innerHTML += `<div>📝 Oración completada.</div>`;
+    lastDetected = false;
+  } else if (currentTimer > CONFIG.PAUSA_ORACION) {
+    estado.textContent = '🗣️ Fin de oración';
+  } else if (currentTimer > CONFIG.PAUSA_PALABRA) {
+    estado.textContent = '💬 Fin de palabra';
+  } else if (currentTimer > CONFIG.PAUSA_LETRA) {
+    estado.textContent = '🔤 Fin de letra';
+  } else {
+    estado.textContent = '⏱️ En pausa corta...';
   }
 
-  video.addEventListener('loadeddata', () => {
-    canvas.width = CONFIG.RES_W;
-    canvas.height = CONFIG.RES_H;
-  });
+  barra.style.width = `${Math.min((currentTimer / CONFIG.PAUSA_TEMPORIZADOR) * 100, 100)}%`;
+}
 
-  setupCamera().then(() => {
-    cameraInstance = new Camera(video, {
-      onFrame: async () => { await hands.send({ image: video }); },
-      width: CONFIG.RES_W,
-      height: CONFIG.RES_H
-    });
-    cameraInstance.start();
-  });
+// ==============================
+// EVENTOS DE BOTONES
+// ==============================
 
-  // ======================
-  // BOTONES FUNCIONALES
-  // ======================
-  document.getElementById('btnCam').addEventListener('click', async () => {
-    if (cameraOn) {
-      const tracks = video.srcObject.getTracks();
-      tracks.forEach(t => t.stop());
-      estado.textContent = '📷 Cámara apagada';
-      cameraOn = false;
-    } else {
-      await setupCamera();
-      estado.textContent = '📸 Cámara encendida';
-      cameraOn = true;
-    }
-  });
+// Encender/Apagar cámara
+document.getElementById('btnCam').addEventListener('click', async () => {
+  if (cameraOn) {
+    const tracks = video.srcObject.getTracks();
+    tracks.forEach(t => t.stop());
+    estado.textContent = '📷 Cámara apagada';
+    cameraOn = false;
+  } else {
+    await setupCamera();
+    estado.textContent = '📸 Cámara encendida';
+    cameraOn = true;
+  }
+});
 
-  document.getElementById('btnPause').addEventListener('click', () => {
-    paused = !paused;
-    estado.textContent = paused ? '⏸️ Pausado' : '▶️ Reanudado';
-  });
+// Pausar/Reanudar detección
+// Pausar/Reanudar detección con cambio de icono
+const btnPause = document.getElementById('btnPause');
+btnPause.addEventListener('click', () => {
+  paused = !paused;
+  if (paused) {
+    estado.textContent = '⏸️ Pausado';
+    btnPause.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+      </svg>
+    `; // Icono de pausa
+  } else {
+    estado.textContent = '▶️ Reanudado';
+    btnPause.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+    `; // Icono de play
+  }
+});
 
-  document.getElementById('btnReset').addEventListener('click', () => {
-    lastDetected = false;
-    currentTimer = 0;
-    barra.style.width = '0%';
-    estado.textContent = '🔄 Reiniciado';
-    timerValue.textContent = '0.0';
-    bufferLetras = [];
-    ultimaLetra = null;
-    chat.innerHTML = '';
-  });
 
-  document.getElementById('btnStop').addEventListener('click', () => {
-    if (cameraInstance) {
-      cameraInstance.stop();
-      estado.textContent = '🛑 Reconocimiento terminado';
-    }
+// Reiniciar temporizador y chat
+document.getElementById('btnReset').addEventListener('click', () => {
+  lastDetected = false;
+  currentTimer = 0;
+  barra.style.width = '0%';
+  estado.textContent = '🔄 Reiniciado';
+  timerValue.textContent = '0.0';
+  bufferLetras = [];
+  ultimaLetra = null;
+  chat.innerHTML = '';
+});
+
+// Detener únicamente la detección
+document.getElementById('btnStop').addEventListener('click', () => {
+  paused = true; // Solo pausa la detección
+  estado.textContent = '🛑 Reconocimiento detenido';
+});
+
+
+
+// ==============================
+// INICIAR CÁMARA AUTOMÁTICAMENTE AL CARGAR
+// ==============================
+async function iniciarCamara() {
+  await setupCamera(); // Prepara el video
+  cameraInstance = new Camera(video, {
+    onFrame: async () => { await hands.send({ image: video }); },
+    width: CONFIG.RES_W,
+    height: CONFIG.RES_H
   });
+  cameraInstance.start();
+  cameraOn = true;
+  estado.textContent = '📸 Cámara encendida';
+}
+
+// Llamamos al cargar la página
+iniciarCamara();
+
+
+
+
+
 </script>
 
 

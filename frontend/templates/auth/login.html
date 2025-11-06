@@ -28,11 +28,30 @@
       </p>
 
       <!-- Formulario -->
-      <form method="POST" action="#">
+      <form method="POST" action="{% url 'login_empresa' %}">
         {% csrf_token %}
+        {% if messages %}
+        <div class="mb-4">
+          {% for message in messages %}
+            <div 
+              class="text-sm font-semibold text-center py-2 rounded-lg 
+                    {% if message.tags == 'error' %}
+                      bg-red-100 text-red-700
+                    {% elif message.tags == 'success' %}
+                      bg-green-100 text-green-700
+                    {% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+
+
+
         <div class="mb-4">
           <label class="block text-gray-700 font-semibold mb-2">Correo electrónico</label>
-          <input type="email" name="username" placeholder="ejemplo@empresa.com"
+          <input type="email" name="email" placeholder="ejemplo@empresa.com"
                  class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
         </div>
 
