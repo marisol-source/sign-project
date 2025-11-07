@@ -176,35 +176,40 @@ function onResults(results) {
 // FUNCION AUXILIAR PARA ENVIAR LANDMARKS A API
 // ==============================
 function enviarLandmarksAPI(landmarks) {
-  fetch("/api/predict/", {
+  // Convertimos los landmarks a un formato simple compatible con tu API
+  const payload = {
+  landmarks: landmarks.map(p => ({ x: 1 - p.x, y: p.y, z: p.z }))
+  };
+  
+  fetch("http://127.0.0.1:8001/api/test/", {
+    
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      type: "landmarks",
-      data: landmarks.map(p => ({ x: 1 - p.x, y: p.y, z: p.z }))
+    body: JSON.stringify(payload)
     })
-  })
-  .then(res => res.json())
-  .then(data => {
+    .then(res => res.json())
+    .then(data => {
     if (data.letter && data.confidence >= CONFIG.MIN_CONFIDENCE) {
-      bufferLetras.push(data.letter);
-      if (bufferLetras.length > CONFIG.BUFFER_SIZE) bufferLetras.shift();
+    // Actualizar buffer y detectar la letra más frecuente
+    bufferLetras.push(data.letter);
+    if (bufferLetras.length > CONFIG.BUFFER_SIZE) bufferLetras.shift();
 
       const counts = {};
-      bufferLetras.forEach(l => counts[l] = (counts[l]||0)+1);
-      const mostFrequent = Object.keys(counts).reduce((a,b)=> counts[a]>counts[b]?a:b);
+      bufferLetras.forEach(l => counts[l] = (counts[l] || 0) + 1);
+      const mostFrequent = Object.keys(counts).reduce((a,b) => counts[a] > counts[b] ? a : b);
 
       if (mostFrequent !== ultimaLetra) {
         ultimaLetra = mostFrequent;
         chat.innerHTML += `<div>🔤 Letra detectada: ${mostFrequent} (Conf: ${Math.round(data.confidence*100)}%)</div>`;
         chat.scrollTop = chat.scrollHeight;
-      }
+      }1
     }
     if (data.error) console.error("Error API:", data.error);
-  })
-  .catch(err => console.error("Error fetch:", err));
-}
+    })
+    .catch(err => console.error("Error fetch:", err));
+    }
 
+        
 // ==============================
 // FUNCION AUXILIAR PARA MANEJAR TEMPORIZADOR Y ESTADO
 // ==============================
