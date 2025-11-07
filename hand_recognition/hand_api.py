@@ -3,6 +3,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from hand_recognition.recognition import normalize_landmarks, extract_features, predict_letter
 from fastapi.middleware.cors import CORSMiddleware
+from hand_recognition.correction import corregir_texto_automatico
+
 
 app = FastAPI()
 
@@ -40,3 +42,18 @@ async def predict(data: LandmarksData):
         return {"letter": letter, "confidence": confidence}
     except Exception as e:
         return {"error": str(e)}
+
+
+# --------- NUEVO MODELO Y NUEVO ENDPOINT (corrección) ----------
+class CorrectionIn(BaseModel):
+    sentence: str
+
+class CorrectionOut(BaseModel):
+    original: str
+    corrected: str
+
+@app.post("/api/correct/", response_model=CorrectionOut)
+async def correct_sentence(payload: CorrectionIn):
+    original = payload.sentence
+    corrected = corregir_texto_automatico(original)
+    return {"original": original, "corrected": corrected}

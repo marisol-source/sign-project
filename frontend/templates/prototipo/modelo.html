@@ -73,7 +73,8 @@
     PAUSA_TEMPORIZADOR: 5.0,
     CONF_THRESH: 0.75,
     BUFFER_SIZE: 5,
-    MIN_CONFIDENCE: 0.5
+    MIN_CONFIDENCE: 0.5,
+    COOLDOWN_LETRA_MS: 1000, 
   };
 
 const video = document.getElementById('input_video');
@@ -137,6 +138,14 @@ let paused = false;
 // --- Buffer para letras ---
 let bufferLetras = [];
 let ultimaLetra = null;
+let cooldownLetraHasta = 0;
+let textoOracion = "";
+
+// Tiempos y control de envío de oración (como en el código largo)
+let lastLetterTime = Date.now();    // última letra aceptada
+let lastActivityTime = Date.now();  // última actividad "real" (letra aceptada)
+let oracionEnviada = false;         // para no repetir la misma oración
+let interpretationActive = true;    // por ahora siempre true
 
 
 // ==============================
@@ -159,11 +168,15 @@ function onResults(results) {
     drawLandmarks(ctx, landmarks, { color: '#FF0000', lineWidth: 3, radius: 5 });
 
     // Enviar datos a API
-    enviarLandmarksAPI(landmarks);
+    if (now >= cooldownLetraHasta) {
+      enviarLandmarksAPI(landmarks);
+      estado.textContent = '✋ Mano detectada';
+    } else {
+      estado.textContent = '⏸️ Esperando siguiente letra...';
+    }
 
     lastGestureTime = now;
     lastDetected = true;
-    estado.textContent = '✋ Mano detectada';
     currentTimer = 0;
   } else {
     manejarTemporizador(now);
@@ -175,66 +188,179 @@ function onResults(results) {
 // ==============================
 // FUNCION AUXILIAR PARA ENVIAR LANDMARKS A API
 // ==============================
+let ultimaLetraMostrada = null;
+let tiempoUltimaLetra = 0;
+const TIEMPO_ESPERA_LETRA = 1500; // ms
+
+// ==============================
+// FUNCION AUXILIAR PARA ENVIAR LANDMARKS A API
+// ==============================
+
 function enviarLandmarksAPI(landmarks) {
   // Convertimos los landmarks a un formato simple compatible con tu API
   const payload = {
-  landmarks: landmarks.map(p => ({ x: 1 - p.x, y: p.y, z: p.z }))
+    landmarks: landmarks.map(p => ({ x: 1 - p.x, y: p.y, z: p.z }))
   };
   
   fetch("http://127.0.0.1:8001/api/test/", {
-    
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
-    })
+  })
     .then(res => res.json())
     .then(data => {
-    if (data.letter && data.confidence >= CONFIG.MIN_CONFIDENCE) {
-    // Actualizar buffer y detectar la letra más frecuente
-    bufferLetras.push(data.letter);
-    if (bufferLetras.length > CONFIG.BUFFER_SIZE) bufferLetras.shift();
+      if (data.letter && data.confidence >= CONFIG.MIN_CONFIDENCE) {
+        // Actualizar buffer y detectar la letra más frecuente
+        bufferLetras.push(data.letter);
+        if (bufferLetras.length > CONFIG.BUFFER_SIZE) bufferLetras.shift();
 
-      const counts = {};
-      bufferLetras.forEach(l => counts[l] = (counts[l] || 0) + 1);
-      const mostFrequent = Object.keys(counts).reduce((a,b) => counts[a] > counts[b] ? a : b);
+        const counts = {};
+        bufferLetras.forEach(l => counts[l] = (counts[l] || 0) + 1);
+        const mostFrequent = Object.keys(counts).reduce((a,b) => counts[a] > counts[b] ? a : b);
 
-      if (mostFrequent !== ultimaLetra) {
-        ultimaLetra = mostFrequent;
-        chat.innerHTML += `<div>🔤 Letra detectada: ${mostFrequent} (Conf: ${Math.round(data.confidence*100)}%)</div>`;
-        chat.scrollTop = chat.scrollHeight;
-      }1
-    }
-    if (data.error) console.error("Error API:", data.error);
-    })
-    .catch(err => console.error("Error fetch:", err));
-    }
+        const frecuencia = counts[mostFrequent] / CONFIG.BUFFER_SIZE;
+        const ahora = Date.now();
+
+        if (
+            mostFrequent !== ultimaLetraMostrada &&
+            frecuencia >= 0.6 &&
+            (ahora - tiempoUltimaLetra) > TIEMPO_ESPERA_LETRA
+          ) {
+            // Actualizamos la letra y el tiempo
+            ultimaLetraMostrada = mostFrequent;
+            tiempoUltimaLetra = ahora;
+
+            // Acumulamos la letra en la oración actual
+            textoOracion += mostFrequent;
+
+            // 🔎 Debug opcional
+            console.log("➡️ textoOracion tras letra:", textoOracion);
+
+            // Actualizamos tiempos de actividad
+            lastLetterTime = ahora;
+            lastActivityTime = ahora;
+            oracionEnviada = false;  // hay contenido nuevo
+
+            // Cooldown entre letras
+            cooldownLetraHasta = ahora + CONFIG.COOLDOWN_LETRA_MS;
+
+            // Mostramos la letra en el chat
+            chat.innerHTML += `<div>🔤 Letra confirmada: ${mostFrequent} (Conf: ${Math.round(
+              data.confidence * 100
+            )}%)</div>`;
+            chat.scrollTop = chat.scrollHeight;
+          }
 
         
+      }
+    
+      if (data.error) console.error("Error API:", data.error);
+    })
+    .catch(err => console.error("Error fetch:", err));
+}
+
+
+
+// ==============================
+// ENVIAR ORACIÓN A GEMINI (FastAPI /api/correct/)
+// ==============================
+function enviarOracionAGemini(oracion) {
+  if (!oracion || !oracion.trim()) return;
+
+  fetch("http://127.0.0.1:8001/api/correct/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sentence: oracion })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.corrected) {
+        // Mostrar oración corregida en el chat
+        chat.innerHTML += `<div>✏️ Oración corregida: ${data.corrected}</div>`;
+        chat.scrollTop = chat.scrollHeight;
+      } else if (data.error) {
+        console.error("Error API corrección:", data.error);
+      } else {
+        console.warn("Respuesta rara de /api/correct/:", data);
+      }
+    })
+    .catch(err => console.error("Error fetch /api/correct/:", err));
+}
+
+
+        
+
 // ==============================
 // FUNCION AUXILIAR PARA MANEJAR TEMPORIZADOR Y ESTADO
 // ==============================
 function manejarTemporizador(now) {
-  if (!lastDetected) return;
+  if (!lastDetected) return; // aún no hemos visto mano/letra en esta sesión
 
-  currentTimer = (now - lastGestureTime) / 1000.0;
+  // Tiempos en segundos desde la última letra y desde la última actividad real
+  const timeSinceLastLetter = (now - lastLetterTime) / 1000.0;
+  const timeSinceLastActivity = (now - lastActivityTime) / 1000.0;
+
+  // Usamos el tiempo desde la última actividad para el temporizador principal
+  currentTimer = timeSinceLastActivity;
   timerValue.textContent = currentTimer.toFixed(1);
 
-  if (currentTimer > CONFIG.PAUSA_TEMPORIZADOR) {
+  // 1) Detectar fin de oración y enviarla al chat (como en el código largo)
+  if (
+    interpretationActive &&
+    !oracionEnviada &&                 // evitar duplicados
+    textoOracion.trim().length > 0 &&  // solo si hay letras acumuladas
+    timeSinceLastActivity >= CONFIG.PAUSA_TEMPORIZADOR
+  ) {
     estado.textContent = '✅ Enviando oración';
-    chat.innerHTML += `<div>📝 Oración completada.</div>`;
+
+    const oracion = textoOracion.trim();
+    chat.innerHTML += `<div>📝 Oración: ${oracion}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+
+      // 🔹 NUEVO: mandar la oración a Gemini para corregir
+
+    enviarOracionAGemini(oracion);
+
+
+    console.log("🚀 Oración enviada:", oracion);
+
+    // Marcar que ya se envió
+    oracionEnviada = true;
+
+    // Limpiar para empezar una nueva oración
+    textoOracion = "";
+    bufferLetras = [];
+    ultimaLetraMostrada = null;
+    tiempoUltimaLetra = 0;
+    cooldownLetraHasta = 0;
+
+    // Reiniciar contadores de tiempo
+    lastActivityTime = now;
+    lastLetterTime = now;
     lastDetected = false;
-  } else if (currentTimer > CONFIG.PAUSA_ORACION) {
+
+    return; // ya manejamos este caso
+  }
+
+  // 2) Actualizar mensaje de estado según los tiempos
+  if (timeSinceLastActivity >= CONFIG.PAUSA_TEMPORIZADOR) {
     estado.textContent = '🗣️ Fin de oración';
-  } else if (currentTimer > CONFIG.PAUSA_PALABRA) {
+  } else if (timeSinceLastLetter >= CONFIG.PAUSA_PALABRA && textoOracion.length > 0) {
     estado.textContent = '💬 Fin de palabra';
-  } else if (currentTimer > CONFIG.PAUSA_LETRA) {
+  } else if (timeSinceLastLetter >= CONFIG.PAUSA_LETRA && textoOracion.length > 0) {
     estado.textContent = '🔤 Fin de letra';
   } else {
     estado.textContent = '⏱️ En pausa corta...';
   }
 
-  barra.style.width = `${Math.min((currentTimer / CONFIG.PAUSA_TEMPORIZADOR) * 100, 100)}%`;
+  // 3) Progreso barra
+  const progreso = Math.min(
+    (timeSinceLastActivity / CONFIG.PAUSA_TEMPORIZADOR) * 100,
+    100
+  );
+  barra.style.width = `${progreso}%`;
 }
+
 
 // ==============================
 // EVENTOS DE BOTONES
@@ -278,16 +404,25 @@ btnPause.addEventListener('click', () => {
 
 
 // Reiniciar temporizador y chat
-document.getElementById('btnReset').addEventListener('click', () => {
-  lastDetected = false;
-  currentTimer = 0;
-  barra.style.width = '0%';
-  estado.textContent = '🔄 Reiniciado';
-  timerValue.textContent = '0.0';
-  bufferLetras = [];
-  ultimaLetra = null;
-  chat.innerHTML = '';
-});
+  document.getElementById('btnReset').addEventListener('click', () => {
+    lastDetected = false;
+    currentTimer = 0;
+    barra.style.width = '0%';
+    estado.textContent = '🔄 Reiniciado';
+    timerValue.textContent = '0.0';
+
+    bufferLetras = [];
+    ultimaLetra = null;
+    ultimaLetraMostrada = null;
+    tiempoUltimaLetra = 0;
+    textoOracion = "";
+    cooldownLetraHasta = 0;
+    lastLetterTime = Date.now();
+    lastActivityTime = Date.now();
+    oracionEnviada = false;
+
+    chat.innerHTML = '';
+  });
 
 // Detener únicamente la detección
 document.getElementById('btnStop').addEventListener('click', () => {
@@ -320,7 +455,6 @@ iniciarCamara();
 
 
 </script>
-
 
 </body>
 </html>
