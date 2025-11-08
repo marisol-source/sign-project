@@ -2,6 +2,8 @@
 
 from django.shortcuts import render
 from usuarios.views import registrar_empresa #Este método es del contexto de arriba
+from oraciones.views import guardar_oracion
+from django.contrib.auth.decorators import login_required
 
 
 def home(request):
@@ -18,3 +20,6 @@ def registro(request):
     if request.method == 'POST':
         return registrar_empresa(request)
     return render(request, 'auth/registro.html')
+ # Redirige a la página de login si no está logueado
+def modelo_premium(request):
+    return render(request, 'prototipo/modelo_premium.html')

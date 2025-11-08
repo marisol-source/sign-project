@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -8,20 +9,63 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 flex justify-center items-center h-screen text-white overflow-hidden">
+<body class="bg-white-900 text-white overflow-hidden">
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 w-full bg-white shadow-md z-30">
+    <div class="max-w-7xl mx-auto flex justify-between items-center py-3 px-6">
+      <!-- Logo -->
+      <img src="{% static 'img/logotipo.png' %}" alt="Logo" class="w-36 h-auto">
+
+      <!-- Menú + Botones a la derecha -->
+      <div class="hidden md:flex items-center space-x-8 text-gray-700 font-medium">
+        <a href="#inicio" class="hover:text-blue-600 transition">Inicio</a>
+        <a href="{% url 'demo' %}" class="hover:text-blue-600 transition">Demo</a>
+        <a href="{% url 'home' %}#nosotros" class="hover:text-blue-600 transition">Nosotros</a>
+
+        {% if request.session.empresa_id %}
+        <!-- Menú de usuario (solo logeado) -->
+        <div class="relative ml-6">
+          <button id="user-menu-btn" class="flex items-center space-x-2 focus:outline-none group">
+            <div id="user-avatar" class="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg border border-gray-200">
+            {{ request.session.empresa_nombre|first|upper }}
+            </div>
+            <span class="font-semibold text-gray-800 group-hover:text-blue-600 transition">
+          {{ request.session.empresa_nombre }}
+            </span>
+            <svg class="w-4 h-4 text-gray-600 group-hover:text-blue-600 transition" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <!-- Dropdown -->
+          <div id="user-menu" class="hidden absolute right-0 mt-2 w-44 bg-white rounded-lg shadow-lg border border-gray-100">
+            <a href="{% url 'logout' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-t-lg">Cerrar sesión</a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Botón menú móvil (opcional) -->
+      <button class="md:hidden text-gray-900 font-bold" id="menu-btn">☰</button>
+    </div>
+  </nav>
+
+  <!-- espacio para que el contenido no quede bajo el navbar -->
+  <div class="pt-20"></div>
 
   <!-- Video y Canvas -->
-  <video id="input_video" autoplay playsinline class="absolute w-[1280px] h-[720px] rounded-xl object-cover"></video>
-  <canvas id="output_canvas" class="absolute w-[1280px] h-[720px] rounded-xl object-cover"></canvas>
+<video id="input_video" autoplay playsinline class="absolute w-[1280px] h-[720px] rounded-xl object-cover top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></video>
+<canvas id="output_canvas" class="absolute w-[1280px] h-[720px] rounded-xl object-cover top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></canvas>
 
-  <!-- Panel superior -->
-  <div class="absolute top-5 left-5 bg-gray-800/90 p-4 rounded-xl shadow-lg w-72">
+  <!-- Panel superior (temporizador/estado) -->
+<div class="absolute left-5 top-40 w-80 bg-gray-800/90 p-4 rounded-xl shadow-lg overflow-y-auto z-20">
+
     <div class="flex justify-between items-center mb-2">
       <span>⏱️ Estado:</span>
       <span id="estado" class="font-semibold">Detectando...</span>
     </div>
     <div class="w-full h-2 bg-gray-700 rounded-full overflow-hidden mb-2">
-      <div id="barra" class="h-full bg-cyan-400 transition-all duration-150" style="width:0%"></div>
+      <div id="barra" class="h-full bg-blue-500 transition-all duration-150" style="width:0%"></div>
     </div>
     <div class="flex justify-between items-center">
       <span>🕒 Temporizador:</span>
@@ -29,36 +73,47 @@
     </div>
   </div>
 
-  <!-- Chat lateral -->
-  <div class="absolute right-5 top-1/2 transform -translate-y-1/2 w-80 h-96 bg-gray-800/90 p-4 rounded-xl shadow-lg overflow-y-auto">
+  <!-- Chat lateral (texto BLANCO y bajo el navbar) -->
+  <div class="absolute right-5 top-36 w-80 h-96 bg-gray-800/90 p-4 rounded-xl shadow-lg overflow-y-auto z-20">
     <h3 class="text-lg font-bold mb-2">🪞 Chat de Interpretación</h3>
-    <div id="chat" class="text-sm space-y-1 overflow-y-auto h-80"></div>
+    <div id="chat" class="text-sm text-white space-y-1 overflow-y-auto h-80"></div>
   </div>
 
-<!-- Controles modernos con Heroicons SVG -->
-<div class="absolute bottom-5 flex space-x-6 justify-center w-full">
-  <button id="btnCam" class="flex items-center justify-center w-20 h-20 bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white rounded-2xl shadow-xl transition transform hover:scale-110">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M4 5a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V7a2 2 0 00-2-2h-4.586l-1.707-1.707A1 1 0 0014.586 3H9.414a1 1 0 00-.707.293L7 5H4zM12 9a4 4 0 110 8 4 4 0 010-8z"/>
-    </svg>
-  </button>
-  <button id="btnPause" class="flex items-center justify-center w-20 h-20 bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-white rounded-2xl shadow-xl transition transform hover:scale-110">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-    </svg>
-  </button>
-  <button id="btnReset" class="flex items-center justify-center w-20 h-20 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl shadow-xl transition transform hover:scale-110">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
-    </svg>
-  </button>
-  <button id="btnStop" class="flex items-center justify-center w-20 h-20 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white rounded-2xl shadow-xl transition transform hover:scale-110">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M6 6h12v12H6z"/>
-    </svg>
-  </button>
-</div>
+  <!-- Controles -->
+  <div class="absolute bottom-5 flex space-x-6 justify-center w-full z-20">
+    <button id="btnCam" class="flex items-center justify-center w-20 h-20 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-2xl shadow-xl transition transform hover:scale-110">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M4 5a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V7a2 2 0 00-2-2h-4.586l-1.707-1.707A1 1 0 0014.586 3H9.414a1 1 0 00-.707.293L7 5H4zM12 9a4 4 0 110 8 4 4 0 010-8z"/>
+      </svg>
+    </button>
+    <button id="btnPause" class="flex items-center justify-center w-20 h-20 bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-white rounded-2xl shadow-xl transition transform hover:scale-110">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+      </svg>
+    </button>
+    <button id="btnReset" class="flex items-center justify-center w-20 h-20 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl shadow-xl transition transform hover:scale-110">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+      </svg>
+    </button>
+    <button id="btnStop" class="flex items-center justify-center w-20 h-20 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white rounded-2xl shadow-xl transition transform hover:scale-110">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M6 6h12v12H6z"/>
+      </svg>
+    </button>
+  </div>
 
+  <!-- scripts del navbar (dropdown) -->
+  <script>
+    const userBtn = document.getElementById('user-menu-btn');
+    const userMenu = document.getElementById('user-menu');
+    if (userBtn && userMenu) {
+      userBtn.addEventListener('click', () => userMenu.classList.toggle('hidden'));
+      document.addEventListener('click', (e) => {
+        if (!userBtn.contains(e.target) && !userMenu.contains(e.target)) userMenu.classList.add('hidden');
+      });
+    }
+  </script>
 
 <script>
   // ==============================
@@ -265,9 +320,9 @@ function enviarLandmarksAPI(landmarks) {
 // ENVIAR ORACIÓN A GEMINI (FastAPI /api/correct/)
 // ==============================
 function enviarOracionAGemini(oracion) {
-  if (!oracion || !oracion.trim()) return;
+  if (!oracion || !oracion.trim()) return Promise.resolve(null);
 
-  fetch("http://127.0.0.1:8001/api/correct/", {
+  return fetch("http://127.0.0.1:8001/api/correct/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sentence: oracion })
@@ -276,17 +331,21 @@ function enviarOracionAGemini(oracion) {
     .then(data => {
       if (data.corrected) {
         // Mostrar oración corregida en el chat
-        chat.innerHTML += `<div>✏️ Oración corregida: ${data.corrected}</div>`;
         chat.scrollTop = chat.scrollHeight;
+        return data.corrected; // ✅ devolvemos la corrección real
       } else if (data.error) {
         console.error("Error API corrección:", data.error);
+        return null;
       } else {
         console.warn("Respuesta rara de /api/correct/:", data);
+        return null;
       }
     })
-    .catch(err => console.error("Error fetch /api/correct/:", err));
+    .catch(err => {
+      console.error("Error fetch /api/correct/:", err);
+      return null;
+    });
 }
-
 
         
 
@@ -304,7 +363,7 @@ function manejarTemporizador(now) {
   currentTimer = timeSinceLastActivity;
   timerValue.textContent = currentTimer.toFixed(1);
 
-  // 1) Detectar fin de oración y enviarla al chat (como en el código largo)
+  // 1) Detectar fin de oración y enviarla al chat
   if (
     interpretationActive &&
     !oracionEnviada &&                 // evitar duplicados
@@ -317,10 +376,16 @@ function manejarTemporizador(now) {
     chat.innerHTML += `<div>📝 Oración: ${oracion}</div>`;
     chat.scrollTop = chat.scrollHeight;
 
-      // 🔹 NUEVO: mandar la oración a Gemini para corregir
-
-    enviarOracionAGemini(oracion);
-
+    // 🔹 MANDAR LA ORACIÓN A GEMINI Y GUARDARLA CUANDO DEVUELVA LA CORRECCIÓN
+    enviarOracionAGemini(oracion).then(corregida => {
+      if (corregida) {
+        // ✅ Guardamos la oración original y su versión corregida en la BD
+        guardarOracion(oracion, corregida);
+        chat.innerHTML += `<div>✏️ Oración corregida: ${corregida}</div>`;
+      } else {
+        console.warn("⚠️ No se pudo obtener la corrección para guardar.");
+      }
+    });
 
     console.log("🚀 Oración enviada:", oracion);
 
@@ -359,6 +424,32 @@ function manejarTemporizador(now) {
     100
   );
   barra.style.width = `${progreso}%`;
+}
+
+
+
+//MÉTODO PARA GUARDAR MIS ORACIONES (ORIGINAL Y CORREGIDA) EN EL BACKEND
+function guardarOracion(oracionOriginal, oracionCorregida) {
+  fetch('/oraciones/guardar_oracion/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}',  // Incluye el token CSRF si usas plantillas de Django
+    },
+    body: JSON.stringify({
+      oracion_original: oracionOriginal,
+      oracion_corregida: oracionCorregida,
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      console.log('Oración guardada exitosamente');
+    } else {
+      console.error('Error al guardar la oración');
+    }
+  })
+  .catch(error => console.error('Error:', error));
 }
 
 
@@ -455,6 +546,9 @@ iniciarCamara();
 
 
 </script>
+
+
+
 
 </body>
 </html>

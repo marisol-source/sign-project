@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'frontend',
     'usuarios', 
+    'oraciones',
 ]
 
 MIDDLEWARE = [
