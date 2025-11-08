@@ -40,6 +40,10 @@ def registrar_empresa(request):
     return render(request, 'auth/registro.html')
 
 def login_empresa(request):
+    # 🔹 Limpia mensajes pendientes (por si vienen de una sesión anterior)
+    storage = messages.get_messages(request)
+    storage.used = True
+
     """Inicia sesión verificando correo y contraseña."""
     if request.method == 'POST':
         correo = request.POST.get('email')
@@ -58,10 +62,23 @@ def login_empresa(request):
         # Si todo es correcto → logeado
         request.session['empresa_id'] = empresa.id
         request.session['empresa_nombre'] = empresa.nombre
+
+        # Agregar mensaje de bienvenida
         messages.success(request, f"Bienvenido, {empresa.nombre}!")
-        return render(request, 'logeado.html',{'empresa_nombre': empresa.nombre})
+        return render(request, 'logeado.html', {'empresa_nombre': empresa.nombre})
+
+    # Si es GET → mostrar el login normal
+    return render(request, 'auth/login.html')
 
 def logout_empresa(request):
-    """Cierra la sesión y redirige al index del frontend."""
-    request.session.flush()  # Borra toda la sesión
-    return redirect('/')      # Redirige al index del frontend
+    """Cierra sesión limpiando mensajes y sesión."""
+     # 🔹 Limpiar mensajes pendientes antes de cerrar sesión
+    storage = messages.get_messages(request)
+    for _ in storage:
+        pass  # consumir los mensajes
+    storage.used = True
+
+    # Borrar sesión completa
+    request.session.flush()
+    # Redirige al index del frontend
+    return redirect('/')

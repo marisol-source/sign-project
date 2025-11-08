@@ -240,23 +240,21 @@ function onResults(results) {
   ctx.restore();
 }
 
-// ==============================
-// FUNCION AUXILIAR PARA ENVIAR LANDMARKS A API
-// ==============================
-let ultimaLetraMostrada = null;
-let tiempoUltimaLetra = 0;
-const TIEMPO_ESPERA_LETRA = 1500; // ms
+
 
 // ==============================
 // FUNCION AUXILIAR PARA ENVIAR LANDMARKS A API
 // ==============================
+// Variables de control de aceptación real
+let lastAcceptedLetter = null;
+let lastAcceptedTime = 0; // ms
 
 function enviarLandmarksAPI(landmarks) {
   // Convertimos los landmarks a un formato simple compatible con tu API
   const payload = {
     landmarks: landmarks.map(p => ({ x: 1 - p.x, y: p.y, z: p.z }))
   };
-  
+
   fetch("http://127.0.0.1:8001/api/test/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -264,7 +262,7 @@ function enviarLandmarksAPI(landmarks) {
   })
     .then(res => res.json())
     .then(data => {
-      if (data.letter && data.confidence >= 0.85) {
+      if (data.letter && data.confidence >= CONFIG.MIN_CONFIDENCE) {
         // Actualizar buffer y detectar la letra más frecuente
         bufferLetras.push(data.letter);
         if (bufferLetras.length > CONFIG.BUFFER_SIZE) bufferLetras.shift();
@@ -272,47 +270,57 @@ function enviarLandmarksAPI(landmarks) {
         const counts = {};
         bufferLetras.forEach(l => counts[l] = (counts[l] || 0) + 1);
         const mostFrequent = Object.keys(counts).reduce((a,b) => counts[a] > counts[b] ? a : b);
-
         const frecuencia = counts[mostFrequent] / CONFIG.BUFFER_SIZE;
         const ahora = Date.now();
 
-        if (
-            mostFrequent !== ultimaLetraMostrada &&
-            frecuencia >= 0.75 &&
-            (ahora - tiempoUltimaLetra) > TIEMPO_ESPERA_LETRA
-          ) {
-            // Actualizamos la letra y el tiempo
-            ultimaLetraMostrada = mostFrequent;
-            tiempoUltimaLetra = ahora;
+        // Condición para aceptar la letra:
+        // - aceptar si la frecuencia es suficiente (>= 75%)
+        // - y además (la letra es distinta a la última aceptada) o (es la misma pero ya pasó la pausa)
+        const tiempoDesdeUltimaAceptada = ahora - lastAcceptedTime;
+        const pausaLetraMs = CONFIG.PAUSA_LETRA * 1000;
 
-            // Acumulamos la letra en la oración actual
+        if (frecuencia >= 0.75) {
+          const esMisma = (mostFrequent === lastAcceptedLetter);
+          const puedeRepetir = esMisma && (tiempoDesdeUltimaAceptada >= pausaLetraMs);
+          const esNueva = !esMisma;
+
+          if (esNueva || puedeRepetir) {
+            // Aceptamos la letra
+            lastAcceptedLetter = mostFrequent;
+            lastAcceptedTime = ahora;
+
+            // Actualizamos la oración y tiempos
             textoOracion += mostFrequent;
-
-            // 🔎 Debug opcional
             console.log("➡️ textoOracion tras letra:", textoOracion);
 
-            // Actualizamos tiempos de actividad
             lastLetterTime = ahora;
             lastActivityTime = ahora;
-            oracionEnviada = false;  // hay contenido nuevo
+            oracionEnviada = false;
 
-            // Cooldown entre letras
+            // Cooldown para evitar llamadas API demasiado seguidas
             cooldownLetraHasta = ahora + CONFIG.COOLDOWN_LETRA_MS;
 
-            // Mostramos la letra en el chat
+            // Limpiar buffer para evitar repeticiones inmediatas por ruido
+            bufferLetras = [];
+
+            // Mostrar en el chat
             chat.innerHTML += `<div>🔤 Letra confirmada: ${mostFrequent} (Conf: ${Math.round(
               data.confidence * 100
             )}%)</div>`;
             chat.scrollTop = chat.scrollHeight;
+          } else {
+            // No se acepta (es la misma letra y aún no pasó la pausa)
+            // Puedes descomentar la línea siguiente para debug
+            // console.log("❌ Rechazada por ser repetición rápida:", mostFrequent);
           }
-
-        
+        }
       }
-    
+
       if (data.error) console.error("Error API:", data.error);
     })
     .catch(err => console.error("Error fetch:", err));
 }
+
 
 
 
@@ -415,8 +423,9 @@ function manejarTemporizador(now) {
   } else if (timeSinceLastLetter >= CONFIG.PAUSA_LETRA && textoOracion.length > 0) {
     estado.textContent = '🔤 Fin de letra';
   } else {
-    estado.textContent = '⏱️ En pausa corta...';
+    estado.textContent = '⏱️ Esperando siguiente gesto...';
   }
+
 
   // 3) Progreso barra
   const progreso = Math.min(
