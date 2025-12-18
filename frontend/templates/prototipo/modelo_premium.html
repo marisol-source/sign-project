@@ -202,6 +202,8 @@ let lastActivityTime = Date.now();  // última actividad "real" (letra aceptada)
 let oracionEnviada = false;         // para no repetir la misma oración
 let interpretationActive = true;    // por ahora siempre true
 
+let manoSeSolto = true;
+
 
 // ==============================
 // FUNCIONES DE DETECCIÓN Y PROCESAMIENTO
@@ -216,6 +218,7 @@ function onResults(results) {
   const now = Date.now();
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    manoActiva = true;
     const landmarks = results.multiHandLandmarks[0];
 
     // Dibujar mano
@@ -234,6 +237,8 @@ function onResults(results) {
     lastDetected = true;
     currentTimer = 0;
   } else {
+    manoActiva = false;
+    manoSeSolto = true;
     manejarTemporizador(now);
   }
 
@@ -284,7 +289,7 @@ function enviarLandmarksAPI(landmarks) {
           const puedeRepetir = esMisma && (tiempoDesdeUltimaAceptada >= pausaLetraMs);
           const esNueva = !esMisma;
 
-          if (esNueva || puedeRepetir) {
+          if (esNueva || (esMisma && manoSeSolto)) {
             // Aceptamos la letra
             lastAcceptedLetter = mostFrequent;
             lastAcceptedTime = ahora;
@@ -292,6 +297,7 @@ function enviarLandmarksAPI(landmarks) {
             // Actualizamos la oración y tiempos
             textoOracion += mostFrequent;
             console.log("➡️ textoOracion tras letra:", textoOracion);
+            manoSeSolto = false;
 
             lastLetterTime = ahora;
             lastActivityTime = ahora;

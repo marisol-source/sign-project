@@ -72,9 +72,10 @@
     PAUSA_ORACION: 3.5,
     PAUSA_TEMPORIZADOR: 5.0,
     CONF_THRESH: 0.85,
+
     BUFFER_SIZE: 5,
-    MIN_CONFIDENCE: 0.5,
-    COOLDOWN_LETRA_MS: 1000, 
+    MIN_CONFIDENCE: 0.8,      //LOW_CONF_PAUSE
+    COOLDOWN_LETRA_MS: 1200, 
   };
 
 const video = document.getElementById('input_video');
@@ -148,6 +149,9 @@ let oracionEnviada = false;         // para no repetir la misma oración
 let interpretationActive = true;    // por ahora siempre true
 
 
+let manoSeSolto = true;
+
+
 // ==============================
 // FUNCIONES DE DETECCIÓN Y PROCESAMIENTO
 // ==============================
@@ -161,6 +165,7 @@ function onResults(results) {
   const now = Date.now();
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    manoActiva = true;
     const landmarks = results.multiHandLandmarks[0];
 
     // Dibujar mano
@@ -179,6 +184,8 @@ function onResults(results) {
     lastDetected = true;
     currentTimer = 0;
   } else {
+    manoActiva = false;
+    manoSeSolto = true;
     manejarTemporizador(now);
   }
 
@@ -192,6 +199,10 @@ function onResults(results) {
 // Variables de control de aceptación real
 let lastAcceptedLetter = null;
 let lastAcceptedTime = 0; // ms
+
+let gestureLocked = false;
+let lastStableGesture = null;
+
 
 function enviarLandmarksAPI(landmarks) {
   // Convertimos los landmarks a un formato simple compatible con tu API
@@ -228,7 +239,7 @@ function enviarLandmarksAPI(landmarks) {
           const puedeRepetir = esMisma && (tiempoDesdeUltimaAceptada >= pausaLetraMs);
           const esNueva = !esMisma;
 
-          if (esNueva || puedeRepetir) {
+          if (esNueva || (esMisma && manoSeSolto)) {
             // Aceptamos la letra
             lastAcceptedLetter = mostFrequent;
             lastAcceptedTime = ahora;
@@ -236,7 +247,7 @@ function enviarLandmarksAPI(landmarks) {
             // Actualizamos la oración y tiempos
             textoOracion += mostFrequent;
             console.log("➡️ textoOracion tras letra:", textoOracion);
-
+            manoSeSolto = false;
             lastLetterTime = ahora;
             lastActivityTime = ahora;
             oracionEnviada = false;
@@ -264,11 +275,6 @@ function enviarLandmarksAPI(landmarks) {
     })
     .catch(err => console.error("Error fetch:", err));
 }
-
-
-
-
-
 
 // ==============================
 // ENVIAR ORACIÓN A GEMINI (FastAPI /api/correct/)
