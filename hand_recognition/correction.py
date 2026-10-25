@@ -6,21 +6,15 @@ import time
 API_KEY = "AIzaSyCEzyPeJ36oc2bB2Wopso5QLWTahjLGjoo"
 
 def corregir_texto_automatico(texto):
-    """Usa la API de Google Gemini para corregir el texto - Versión simplificada"""
-    
-    # Si el texto está vacío, retornar vacío
+    """Usa la API de Google Gemini para corregir el texto - Versión simplificada"""   
     if not texto or not texto.strip():
         return ""
-    
     print(f"📨 Enviando a Gemini: '{texto}'")
-    
     try:
         # Configurar el cliente
         genai.configure(api_key=API_KEY)
-        
         # Configurar el modelo
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
+        model = genai.GenerativeModel('gemini-flash-latest')
         # Prompt mejorado
         prompt = f"""
         Eres un intérprete de comunicación y corrector ortográfico/tipográfico. Tu rol es actuar como la voz clara y precisa de una persona sorda o con discapacidad auditiva que se está comunicando en un entorno de atención al cliente.
@@ -39,20 +33,15 @@ def corregir_texto_automatico(texto):
 
         # Hacer la solicitud
         response = model.generate_content(prompt)
-        
         # Procesar respuesta
         if response and response.text:
             texto_corregido = response.text.strip()
-            
-            # Limitar a 6 palabras y formatear
             palabras = texto_corregido.split()[:6]
-            texto_corregido = " ".join(palabras)
-            
+            texto_corregido = " ".join(palabras)     
             # Capitalizar y agregar puntuación si es necesario
             texto_corregido = texto_corregido.capitalize()
             if not texto_corregido.endswith(('.', '!', '?')):
-                texto_corregido += '.'
-                
+                texto_corregido += '.'              
             print(f"✅ Gemini respondió: '{texto_corregido}'")
             return texto_corregido
         else:

@@ -5,4 +5,6 @@ from . import views
 
 urlpatterns = [
     path('guardar_oracion/', views.guardar_oracion, name='guardar_oracion'),
+    path("guardar_feedback/", views.guardar_feedback, name="guardar_feedback"),
+
 ]

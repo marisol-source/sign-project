@@ -103,6 +103,29 @@
     </button>
   </div>
 
+
+  <!--VENTANA DE CONFIRMACIÓN -->
+<div id="feedbackModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+  <div class="bg-gray-800 rounded-xl p-6 w-96 text-center shadow-2xl">
+    <h2 class="text-lg font-semibold mb-4">
+      ¿El resultado fue el esperado?
+    </h2>
+
+    <div class="flex justify-center gap-4">
+      <button id="btnYes" class="px-6 py-2 bg-green-600 hover:bg-green-500 rounded-lg">
+        Sí
+      </button>
+      <button id="btnNo" class="px-6 py-2 bg-red-600 hover:bg-red-500 rounded-lg">
+        No
+      </button>
+    </div>
+    <!-- Resultado ISCS -->
+    <div id="iscsResult" class="mt-4 text-sm text-left hidden bg-gray-700 p-3 rounded">
+    </div>
+
+  </div>
+</div>
+
   <!-- scripts del navbar (dropdown) -->
   <script>
     const userBtn = document.getElementById('user-menu-btn');
@@ -137,6 +160,9 @@ const canvas = document.getElementById('output_canvas');
 const ctx = canvas.getContext('2d');
 
 let cameraInstance = null;
+
+let feedbackActivo = false; //bloquea reconocimiento cuando es true
+
 
 async function setupCamera() {
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -203,13 +229,14 @@ let oracionEnviada = false;         // para no repetir la misma oración
 let interpretationActive = true;    // por ahora siempre true
 
 let manoSeSolto = true;
+let ultimaOracionId = null;
 
 
 // ==============================
 // FUNCIONES DE DETECCIÓN Y PROCESAMIENTO
 // ==============================
 function onResults(results) {
-  if (paused) return;
+  if (paused || feedbackActivo) return;
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -345,8 +372,8 @@ function enviarOracionAGemini(oracion) {
     .then(data => {
       if (data.corrected) {
         // Mostrar oración corregida en el chat
-        chat.scrollTop = chat.scrollHeight;
-        return data.corrected; // ✅ devolvemos la corrección real
+        chat.scrollTop = chat.scrollHeight;        
+        return data.corrected; 
       } else if (data.error) {
         console.error("Error API corrección:", data.error);
         return null;
@@ -367,6 +394,7 @@ function enviarOracionAGemini(oracion) {
 // FUNCION AUXILIAR PARA MANEJAR TEMPORIZADOR Y ESTADO
 // ==============================
 function manejarTemporizador(now) {
+  if (feedbackActivo) return;
   if (!lastDetected) return; // aún no hemos visto mano/letra en esta sesión
 
   // Tiempos en segundos desde la última letra y desde la última actividad real
@@ -395,7 +423,13 @@ function manejarTemporizador(now) {
       if (corregida) {
         // ✅ Guardamos la oración original y su versión corregida en la BD
         guardarOracion(oracion, corregida);
+
         chat.innerHTML += `<div>✏️ Oración corregida: ${corregida}</div>`;
+        chat.scrollTop = chat.scrollHeight; 
+
+        feedbackActivo = true;
+        paused = true; // extra seguridad
+        feedbackModal.classList.remove("hidden");
       } else {
         console.warn("⚠️ No se pudo obtener la corrección para guardar.");
       }
@@ -460,6 +494,8 @@ function guardarOracion(oracionOriginal, oracionCorregida) {
   .then(data => {
     if (data.status === 'success') {
       console.log('Oración guardada exitosamente');
+      ultimaOracionId = data.oracion_id;
+      console.log("🆔 Oración guardada con ID:", ultimaOracionId);
     } else {
       console.error('Error al guardar la oración');
     }
@@ -537,7 +573,6 @@ document.getElementById('btnStop').addEventListener('click', () => {
 });
 
 
-
 // ==============================
 // INICIAR CÁMARA AUTOMÁTICAMENTE AL CARGAR
 // ==============================
@@ -557,9 +592,77 @@ async function iniciarCamara() {
 iniciarCamara();
 
 
+//Botones de confirmación
+const feedbackModal = document.getElementById("feedbackModal");
+const btnYes = document.getElementById("btnYes");
+const btnNo = document.getElementById("btnNo");
+
+let respuestaUsuario = null;
+
+btnYes.addEventListener("click", () => {
+  enviarResultadoEsperado(true);
+  feedbackActivo = false; 
+  paused = false;                  // 👈 reanudar reconocimiento
+
+  lastDetected = false;
+  oracionEnviada = false;
+  lastActivityTime = Date.now();
+  lastLetterTime = Date.now();
+});
+
+btnNo.addEventListener("click", () => {
+  enviarResultadoEsperado(false);
+  feedbackActivo = false;
+  paused = false;                  // 👈 reanudar reconocimiento
+  lastDetected = false;
+  oracionEnviada = false;
+  lastActivityTime = Date.now();
+  lastLetterTime = Date.now();
+  feedbackModal.classList.add("hidden");
+});
 
 
 
+// Función para enviar el feedback del usuario al backend
+function enviarResultadoEsperado(resultado) {
+  if (!ultimaOracionId) {
+    console.warn("⚠️ No hay oración para evaluar");
+    return;
+  }
+
+  fetch('/oraciones/guardar_feedback/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      oracion_id: ultimaOracionId,
+      resultado_esperado: resultado
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    console.log("📦 Feedback guardado:", data);
+
+    // 👉 MOSTRAR ISCS
+    if (data.iscs) {
+      const iscsDiv = document.getElementById("iscsResult");
+      iscsDiv.innerHTML = `
+        <b>📊 ISCS:</b> ${data.iscs.iscs_final}<br>
+        🎯 Intención: ${data.iscs.intencion ? "✔️" : "❌"}<br>
+        🧠 Contexto: ${data.iscs.contexto ? "✔️" : "❌"}<br>
+        ⚙️ Reglas: ${data.iscs.reglas_tecnicas ? "✔️" : "❌"}
+      `;
+      iscsDiv.classList.remove("hidden");
+    }
+
+    // 👉 CERRAR MODAL SOLO CUANDO YA LLEGÓ TODO
+    setTimeout(() => {
+      feedbackModal.classList.add("hidden");
+    }, 3000); // se queda 3s visible
+  })
+  .catch(err => console.error("❌ Error feedback:", err));
+}
 </script>
 
 

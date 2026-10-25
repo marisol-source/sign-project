@@ -1,7 +1,34 @@
-fastapi
-uvicorn
-opencv-python
+# ======================
+# Backend Web
+# ======================
+Django==5.2.7
+
+# ======================
+# Base de datos
+# ======================
+psycopg2-binary==2.9.11
+
+# ======================
+# Visión por computadora
+# ======================
+opencv-python==4.12.0.88
 mediapipe==0.10.13
-joblib
-numpy
-scikit-learn
+numpy==2.2.6
+
+# ======================
+# Machine Learning
+# ======================
+joblib==1.5.2
+scikit-learn==1.7.2
+
+# ======================
+# API
+# ======================
+fastapi==0.121.0
+uvicorn==0.38.0
+
+# ======================
+# Gemini / IA Generativa
+# ======================
+google-generativeai==0.8.5
+

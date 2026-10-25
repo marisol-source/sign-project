@@ -7,12 +7,11 @@ from django.contrib.auth.decorators import login_required
 
 
 def home(request):
+    """Renderiza la página de inicio."""
     return render(request, 'index.html')
 
-def prototipo(request):
-    return render(request, 'prototipo/modelo.html')
-
 def login_view(request):
+    """Si el método es POST, delega la lógica al backend para iniciar sesión."""
     return render(request, "auth/login.html")
 
 def registro(request):
@@ -20,6 +19,12 @@ def registro(request):
     if request.method == 'POST':
         return registrar_empresa(request)
     return render(request, 'auth/registro.html')
+
+def prototipo(request):
+    """Renderiza la página del prototipo."""
+    return render(request, 'prototipo/modelo.html')
+
  # Redirige a la página de login si no está logueado
 def modelo_premium(request):
+    """Renderiza la página del modelo premium."""
     return render(request, 'prototipo/modelo_premium.html')

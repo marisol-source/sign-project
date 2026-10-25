@@ -82,7 +82,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'bd_signapp',
         'USER': 'user_mari',
-        'PASSWORD': '7215',      # si la cambiaste, pon tu nueva contraseña
+        'PASSWORD': '7215',      
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -91,6 +91,7 @@ DATABASES = {
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {

@@ -9,6 +9,16 @@ class Oracion(models.Model):
     oracion_corregida = models.TextField()  # Oración corregida por el sistema
     created_at = models.DateTimeField(auto_now_add=True)  # Fecha de creación
     updated_at = models.DateTimeField(auto_now=True)  # Fecha de la última actualización
+    resultado_esperado = models.BooleanField(
+        null=True,
+        blank=True
+    )
+
+    # 🔹 ISCS
+    iscs_final = models.FloatField(null=True, blank=True)
+    iscs_intencion = models.IntegerField(null=True, blank=True)
+    iscs_contexto = models.IntegerField(null=True, blank=True)
+    iscs_reglas = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return f'Oración de {self.empresa.nombre} - {self.created_at}'

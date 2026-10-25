@@ -60,6 +60,25 @@
 </div>
 
 
+<!--VENTANA DE CONFIRMACIÓN -->
+<div id="feedbackModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+  <div class="bg-gray-800 rounded-xl p-6 w-96 text-center shadow-2xl">
+    <h2 class="text-lg font-semibold mb-4">
+      ¿El resultado fue el esperado?
+    </h2>
+
+    <div class="flex justify-center gap-4">
+      <button id="btnYes" class="px-6 py-2 bg-green-600 hover:bg-green-500 rounded-lg">
+        Sí
+      </button>
+      <button id="btnNo" class="px-6 py-2 bg-red-600 hover:bg-red-500 rounded-lg">
+        No
+      </button>
+    </div>
+  </div>
+</div>
+
+
 <script>
   // ==============================
   // INICIALIZACIÓN DE CÁMARA Y MEDIA PIPE
@@ -83,6 +102,8 @@ const canvas = document.getElementById('output_canvas');
 const ctx = canvas.getContext('2d');
 
 let cameraInstance = null;
+let feedbackActivo = false; //bloquea reconocimiento cuando es true
+
 
 async function setupCamera() {
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -93,6 +114,11 @@ async function setupCamera() {
   await video.play();
   return stream;
 }
+
+
+
+
+
 
 const hands = new Hands({
   locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -156,7 +182,7 @@ let manoSeSolto = true;
 // FUNCIONES DE DETECCIÓN Y PROCESAMIENTO
 // ==============================
 function onResults(results) {
-  if (paused) return;
+  if (paused || feedbackActivo) return;
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -293,6 +319,10 @@ function enviarOracionAGemini(oracion) {
         // Mostrar oración corregida en el chat
         chat.innerHTML += `<div>✏️ Oración corregida: ${data.corrected}</div>`;
         chat.scrollTop = chat.scrollHeight;
+        
+        feedbackActivo = true;
+        paused = true; // extra seguridad
+        feedbackModal.classList.remove("hidden");
       } else if (data.error) {
         console.error("Error API corrección:", data.error);
       } else {
@@ -464,6 +494,31 @@ async function iniciarCamara() {
 
 // Llamamos al cargar la página
 iniciarCamara();
+
+
+
+//Botones de confirmación
+const feedbackModal = document.getElementById("feedbackModal");
+const btnYes = document.getElementById("btnYes");
+const btnNo = document.getElementById("btnNo");
+
+let respuestaUsuario = null;
+
+btnYes.addEventListener("click", () => {
+  respuestaUsuario = true;
+  console.log("Respuesta usuario: SÍ");
+  feedbackActivo = false; 
+  paused = false;   
+  feedbackModal.classList.add("hidden");
+});
+
+btnNo.addEventListener("click", () => {
+  respuestaUsuario = false;
+  console.log("Respuesta usuario: NO");
+  feedbackActivo = false; 
+  paused = false;   
+  feedbackModal.classList.add("hidden");
+});
 
 
 

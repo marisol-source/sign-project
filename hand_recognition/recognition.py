@@ -1,4 +1,4 @@
-# recognition.py
+"""Docstring for hand_recognition.recognition""" 
 import os
 import mediapipe as mp
 import numpy as np
@@ -36,6 +36,7 @@ FEATURE_ORDER = [
 # Funciones
 # ==========================
 def normalize_landmarks(hand_landmarks):
+    """Método para normalizar los puntos de referencia de la mano.""" 
     pts = np.array([[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark], dtype=np.float32)
     wrist = pts[IDX.WRIST.value, :2]
     pts[:, :2] -= wrist
@@ -45,10 +46,12 @@ def normalize_landmarks(hand_landmarks):
     return pts
 
 def pair_dist(pts, a, b):
+    """Método para calcular la distancia entre dos puntos de referencia.""" 
     pa, pb = pts[a, :2], pts[b, :2]
     return float(np.linalg.norm(pa - pb))
 
 def angle(a, b, c, pts):
+    """Método para calcular el ángulo entre tres puntos de referencia."""
     A, B, C = pts[a, :2], pts[b, :2], pts[c, :2]
     BA, BC = A - B, C - B
     denom = (np.linalg.norm(BA) * np.linalg.norm(BC) + 1e-8)
@@ -57,6 +60,7 @@ def angle(a, b, c, pts):
     return float(np.arccos(cosang))
 
 def extract_features(pts):
+    """Método para extraer características de los puntos de referencia normalizados."""
     f = {}
     f["thumb_open"] = pair_dist(pts, IDX.THUMB_TIP.value, IDX.THUMB_CMC.value)
     f["idx_open"] = pair_dist(pts, IDX.INDEX_FINGER_TIP.value, IDX.INDEX_FINGER_MCP.value)
@@ -71,6 +75,7 @@ def extract_features(pts):
     return f
 
 def predict_letter(feats):
+    """Método para predecir la letra basada en las características extraídas."""
     feature_vector = np.array([feats[f] for f in FEATURE_ORDER]).reshape(1, -1)
     feature_vector_scaled = scaler.transform(feature_vector)
     pred = mlp.predict(feature_vector_scaled)[0]

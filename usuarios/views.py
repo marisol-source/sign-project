@@ -1,3 +1,4 @@
+"""Vistas relacionadas con la autenticación de empresas."""
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Empresa
@@ -40,15 +41,13 @@ def registrar_empresa(request):
     return render(request, 'auth/registro.html')
 
 def login_empresa(request):
-    # 🔹 Limpia mensajes pendientes (por si vienen de una sesión anterior)
+    """Inicia sesión de una empresa existente."""
     storage = messages.get_messages(request)
     storage.used = True
 
-    """Inicia sesión verificando correo y contraseña."""
     if request.method == 'POST':
         correo = request.POST.get('email')
         contrasena = request.POST.get('password')
-
         try:
             empresa = Empresa.objects.get(correo=correo)
         except Empresa.DoesNotExist:
@@ -62,7 +61,7 @@ def login_empresa(request):
         # Si todo es correcto → logeado
         request.session['empresa_id'] = empresa.id
         request.session['empresa_nombre'] = empresa.nombre
-
+        
         # Agregar mensaje de bienvenida
         messages.success(request, f"Bienvenido, {empresa.nombre}!")
         return render(request, 'logeado.html', {'empresa_nombre': empresa.nombre})
